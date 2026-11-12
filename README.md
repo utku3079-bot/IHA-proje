@@ -1,0 +1,3 @@
+Bu projede TEKNOFEST icin IHA alaninda lise kategorisinde doner kanatli bir insansiz hava aracinin ilgili kodlarini yazacagim.
+1. Asamada değişkenler ve veri tipleri, aritmetik, input/print, if-else, for ve while döngüleri, listeler, fonksiyonlar, sözlükler, dosya okuma/yazma konularini ogrendim.
+Ilk denemelerimde kimi zaman cesitli kodlari calistiramadim veya hata verdi, ancak kisa bir sure icerisinde butun 1. Asama egitimimi tamamladim.
