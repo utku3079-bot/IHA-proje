@@ -13,7 +13,15 @@ while True:
     if command_verisi == mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM :
        if  result_verisi == mavutil.mavlink.MAV_RESULT_ACCEPTED:
          print("YES")
+         baglanti.mav.command_long_send(baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, 20)
        else :
           print("NO")
        break
-print(result_verisi)
+while True :
+    konum = baglanti.recv_match(type="GLOBAL_POSITION_INT", blocking=True)
+    irtifa = (konum.relative_alt)/1000
+    print(irtifa)
+    if irtifa > 19.9 :
+     baglanti.set_mode("LAND")
+     print("mode: LAND")
+     break
