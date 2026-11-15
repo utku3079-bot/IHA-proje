@@ -12,4 +12,3 @@ while True:
     else :
         print("DISARMED")
     print(motor_durumu)
-    
