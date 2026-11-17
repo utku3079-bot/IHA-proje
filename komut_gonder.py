@@ -18,6 +18,20 @@ while True:
        else :
           print("NO")
        break
+while True: 
+    veri = baglanti.recv_match(type="COMMAND_ACK", blocking=True, timeout = 5)
+    if veri is None:
+        print("hiçbir şey gelmedi")
+        break
+    kalkis_verisi = veri.command
+    result_cevabi = veri.result
+    if kalkis_verisi == mavutil.mavlink.MAV_CMD_NAV_TAKEOFF:
+        if result_cevabi == mavutil.mavlink.MAV_RESULT_ACCEPTED:
+          print("kalkis emri verildi")
+          break
+        else :
+          print("Kalkis reddedildi")
+          break
 while True :
     konum = baglanti.recv_match(type="GLOBAL_POSITION_INT", blocking=True)
     irtifa = (konum.relative_alt)/1000
