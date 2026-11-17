@@ -1,5 +1,6 @@
 from pymavlink import mavutil
 import time
+import sys
 baglanti = mavutil.mavlink_connection("udpin:127.0.0.1:14552")
 kalp_atisi = baglanti.wait_heartbeat()
 print("kalp atisi alindi")
@@ -17,12 +18,13 @@ while True:
          baglanti.mav.command_long_send(baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, 20)
        else :
           print("NO")
+          sys.exit("Hata: command verisi veya result verisi dogru degil")
        break
 while True: 
     veri = baglanti.recv_match(type="COMMAND_ACK", blocking=True, timeout = 5)
     if veri is None:
         print("hiçbir şey gelmedi")
-        break
+        sys.exit("Hata: command mesaji beklendi ama gelmedi")
     kalkis_verisi = veri.command
     result_cevabi = veri.result
     if kalkis_verisi == mavutil.mavlink.MAV_CMD_NAV_TAKEOFF:
@@ -31,7 +33,7 @@ while True:
           break
         else :
           print("Kalkis reddedildi")
-          break
+          sys.exit("Hata: command veya result verisi dogru degil")
 while True :
     konum = baglanti.recv_match(type="GLOBAL_POSITION_INT", blocking=True)
     irtifa = (konum.relative_alt)/1000
