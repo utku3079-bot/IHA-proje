@@ -1,105 +1,73 @@
-Bu projede TEKNOFEST icin IHA alaninda lise kategorisinde doner kanatli bir insansiz hava aracinin ilgili kodlarini yazacagim.
-1. Asamada değişkenler ve veri tipleri, aritmetik, input/print, if-else, for ve while döngüleri, listeler, fonksiyonlar, sözlükler, dosya okuma/yazma konularini ogrendim.
-Ilk denemelerimde kimi zaman cesitli kodlari calistiramadim veya hata verdi, ancak kisa bir sure icerisinde butun 1. Asama egitimimi tamamladim.
-Öğrendiklerim:
+# ARGUS — İHA uçuş yazılımı
 
-WSL ile Windows'un içinde Linux çalıştırmak.
-sudo, apt, git clone --recurse-submodules komutları.
-Python sanal ortamı (venv-ardupilot).
-SITL'yi sim_vehicle.py ile başlatmak.
-Çalışmayanlar:
+TEKNOFEST Liseler Arası İHA Yarışması 2027 (Serbest Görev) için döner kanatlı bir İHA'nın yazılımını geliştiriyoruz. ARGUS, projenin çalışma adı. Uçuş kontrolcüsü ArduPilot (Copter); betikler Python ve [pymavlink](https://github.com/ArduPilot/pymavlink) ile yazılıyor ve şimdilik bilgisayarda simüle edilen bir İHA (SITL) üzerinde deneniyor.
 
-WSL kuruldu ama içine Ubuntu kurulmamıştı.
-Ubuntu, Windows'un sistem klasöründe (system32) açıldı.
-wxPython 30–60 dakika derlendi, donmuş sandın.
-Kurulum ortasında sudo şifre zaman aşımına uğradı.
-2. Mission Planner ve AUTO görevi
-Öğrendiklerim:
+> **Güvenlik:** Komut gönderen betikler (şu an `komut_gonder.py`) gerçek bir İHA'da, pervaneler takılıyken ve pilot hazır değilken **asla** çalıştırılmaz.
 
-UDP 14550 ile bağlanmak.
-Haritada görev çizmek: TAKEOFF, WAYPOINT, DO_SET_SERVO, DELAY, RTL.
-Servo 9: 1100 kapalı, 1900 açık.
-Çalışmayanlar:
+## Hızlı başlangıç
 
-Connect Failed: Windows güvenlik duvarı bağlantıyı engelledi.
-Home location invalid hatası.
-Auto mode not armable: Önce GUIDED'da arm edip sonra AUTO'ya geçmek gerekiyor.
-Throttle not neutral: rc 3 1000 gerekti.
-İHA AUTO'da kalkmadı: AUTO_OPTIONS = 2 gerekti.
-Do Action ile yanlışlıkla LOITER seçildi ve İHA yere çarptı
-3. İlk pymavlink betikleri
-Öğrendiklerim:
+Kurulum (WSL, Ubuntu, ArduPilot, Mission Planner) adım adım [REHBER_SITL.md](REHBER_SITL.md) dosyasında.
 
-mavlink_connection, wait_heartbeat, recv_match.
-GLOBAL_POSITION_INT ile enlem, boylam ve irtifa okumak. Birimler: 1e7 ve milimetre.
-Çalışmayan:
+Kurulumdan sonra:
 
-Betik wait_heartbeat'te takıldı, çünkü simülatör 14551 portuna veri göndermiyordu. --out 127.0.0.1:14551 gerekti.
-4. Arm durumu: arm_durumu.py
-Öğrendiklerim:
+1. Bir Ubuntu terminalinde simülatörü başlat. Betikler 14551 ve 14552 portlarını dinlediği için iki `--out` gerekli:
 
-base_mode ve bit maskesi.
-& işlemi, bin().
-128 = armed, 8 = GUIDED. Kendi ölçümün: 81 → 217.
-Çalışmayanlar:
+   ```bash
+   cd ~/ardupilot
+   sim_vehicle.py -v ArduCopter --console --map --out 127.0.0.1:14551 --out 127.0.0.1:14552
+   ```
 
-MAV_MODE_FLAG_SAFETY_ARMED için NameError.
-Commit'ten önce test etmeden göndermek.
-5. Komut gönderme 
-Öğrendiklerim:
+2. Console penceresinde yeşil `EKF3 IMU0 is using GPS` satırını bekle.
+3. İkinci bir Ubuntu terminalinde betiği çalıştır:
 
-set_mode.
-COMMAND_LONG ve 11 parametresi, parametre sırasının önemi.
-Çalışmayanlar:
+   ```bash
+   cd ~/IHA-proje
+   python komut_gonder.py
+   ```
 
-wait_heartbeat olmadan komut gönderildi ve hiçbir yere ulaşmadı.
-İki betik aynı portu dinledi, ikinci port (14552) gerekti.
-6. COMMAND_ACK
-Öğrendiklerim:
+Aynı portu dinleyen iki betik aynı anda çalışamaz (aşağıdaki tabloda hangi betiğin hangi portu kullandığı yazıyor).
 
-Her komutun bir cevabı vardır.
-command ve result alanları.
-blocking=True ve type=.
-Print ile hata ayıklamak.
-Çalışmayanlar:
+## Dosyalar
 
-blocking olmadan okuyunca None geldi.
-İlk gelen ACK set_mode'a aitti (176), arm'ın cevabı (400) değildi.
-and kullanılan koşul yüzünden ret durumunda döngü sonsuza kadar döndü.
-Kütüphane sabitinin üzerine yazıldı (= 400).
-7. Kalkış ve iniş
-Öğrendiklerim:
+| Dosya | Port | Ne yapar |
+|---|---|---|
+| `ilk_baglanti.py` | 14551 | İHA'ya bağlanır ve ilk HEARTBEAT mesajını ekrana basar. Bağlantının çalıştığını denemenin en kısa yolu. |
+| `irtifa_oku.py` | 14551 | GLOBAL_POSITION_INT mesajını sürekli okuyup enlem, boylam ve irtifayı (metre) yazdırır. Çıkmak için Ctrl+C. |
+| `arm_durumu.py` | 14551 | HEARTBEAT'teki `base_mode` alanının 128 bitine bakarak İHA'nın `ARMED` mı `DISARMED` mı olduğunu sürekli yazdırır. Komut gönderen bir betiği denerken ikinci pencerede açık tutmak için. |
+| `komut_gonder.py` | 14552 | **Komut gönderir.** GUIDED moduna geçer, arm eder, 20 m'ye kalkar, servo 9'u açıp 5 saniye sonra kapatır ve LAND moduyla iner. Her komutun cevabını (COMMAND_ACK) kontrol eder; arm ya da kalkış reddedilirse veya 5 saniye içinde cevap gelmezse durur. Servo kısmı alıştırma amaçlıdır. |
+| `yuk_birakma_gorevi.waypoints` | — | Mission Planner görev dosyası (PLAN → Load): kalkış, iki nokta, servo 9 ile yük bırakma, eve dönüş. Alıştırma amaçlıdır. |
+| `IHA-proje.py` | — | Aşama 1'deki Python temelleri alıştırmaları. İHA'ya bağlanmaz. |
+| `REHBER_SITL.md` | — | SITL ve Mission Planner kurulum rehberi (taslak; son hali 20 Aralık). |
 
-MAV_CMD_NAV_TAKEOFF (p7 = irtifa).
-LAND modu.
-Çalışmayanlar:
+## Aşama 1: Python temelleri
 
-İrtifa bir kez okundu ve hiç güncellenmedi ("fotoğraf").
-Birim karışıklığı (mm ile m).
-== kullanılınca eşik hiç yakalanmadı.
-Fazladan ve yanlış girintili break.
-8. Yük bırakma
-Öğrendiklerim:
+Değişkenler ve veri tipleri, aritmetik, input/print, if-else, for ve while döngüleri, listeler, fonksiyonlar, sözlükler, dosya okuma/yazma. İlk denemelerimde bazı kodları çalıştıramadım ya da hata aldım, ama kısa sürede Aşama 1'i tamamladım.
 
-DO_SET_SERVO.
-SERVO_OUTPUT_RAW ile servonun döndüğünü doğrulamak.
-time.sleep.
-break sadece en yakın döngüden çıkar.
-Çalışmayanlar:
+## Aşama 2: Git, SITL ve pymavlink
 
-İki ayrı if yüzünden yük tekrar tekrar bırakıldı.
-blocking=1900 yazıldı.
-İlk gelen SERVO_OUTPUT_RAW mesajı eskiydi.
-İHA önceki uçuştan armed kaldı ve kalkış reddedildi. Nedeni mav.tlog kaydından bulundu.
-9. Hata durumları ve branch
-Öğrendiklerim:
+Git ve GitHub, WSL, ArduPilot SITL kurulumu, Mission Planner ile AUTO görevi ve İHA'yı Python'dan yöneten pymavlink betikleri.
 
-Kalkış ACK'ini kontrol etmek.
-timeout ve is None.
-sys.exit.
-git switch -c, merge, fast-forward.
-Çalışmayanlar:
+### Ne öğrendim
 
-"Cevap bana ait değil" durumu "reddedildi" sanıldı.
-Örnek kod olduğu gibi kopyalandı (sonuc = None).
-break'ten sonra yazılan sys.exit hiç çalışmadı.
+- **Kurulum:** WSL ile Windows'ta Linux çalıştırmak; `sudo`, `apt`, `git clone --recurse-submodules`; Python sanal ortamı (`venv-ardupilot`); SITL'yi `sim_vehicle.py` ile başlatmak.
+- **Mission Planner:** UDP 14550 ile bağlanmak; haritada görev çizmek (TAKEOFF, WAYPOINT, DO_SET_SERVO, DELAY, RTL).
+- **Veri okumak:** `mavlink_connection`, `wait_heartbeat`, `recv_match`; GLOBAL_POSITION_INT'te enlem/boylamın 10⁷ ile, irtifanın milimetre cinsinden geldiği.
+- **Bit maskesi:** `base_mode` tek bir sayı ama her biti ayrı bir bilgi; `&` ile tek bit okunur. Kendi ölçümüm: STABILIZE ve disarm 81, GUIDED ve arm 217 (fark 128 + 8).
+- **Komut göndermek:** `set_mode`; COMMAND_LONG ve 11 parametresi (sıra önemli).
+- **Cevabı kontrol etmek:** Her komutun bir COMMAND_ACK cevabı var. Önce `command` alanıyla cevabın hangi komuta ait olduğuna, sonra `result` ile kabul mü ret mi olduğuna bakmak gerekiyor. "Bu cevap benim komutuma ait değil" ile "komutum reddedildi" aynı şey değil.
+- **Döngüler ve akış:** Bir değişken kendiliğinden güncellenmez, yeni değer için yeniden okumak gerekir. İlk gelen mesaj aradığım olmayabilir, aradığımı bulana kadar döngüde okurum. `break` yalnızca en yakın döngüden çıkar, `sys.exit` programı bitirir.
+- **Karşılaştırma:** Ölçülen değerlerde (irtifa) `==` yerine eşik, komut değerlerinde (PWM 1900) `==`.
+- **Bekleme:** Sabit bir bekleme süresi yerine `timeout` (üst sınır) ve `is None` kontrolü.
+- **Hata ayıklama:** Adımların arasına `print` koymak; simülatörün `mav.tlog` kaydından gönderilen komutları ve cevapları okumak.
+- **Git:** commit, push, `git switch -c` ile dal açmak, `merge` ve fast-forward.
+
+### Ne çalışmadı
+
+- **Kurulum:** WSL kuruldu ama içine Ubuntu kurulmamıştı. Ubuntu bir kere Windows'un `system32` klasöründe açıldı. wxPython 30–60 dakika derlendi, dondu sandım. Kurulumun ortasında `sudo` şifresi zaman aşımına uğradı.
+- **Mission Planner:** Windows güvenlik duvarı bağlantıyı engelledi (`Connect Failed`). `Auto mode not armable` (önce GUIDED'da arm etmek gerekiyor), `Throttle not neutral` (`rc 3 1000`), AUTO'da kalkmama (`AUTO_OPTIONS = 2`). Do Action ile yanlışlıkla LOITER seçildi ve İHA yere çarptı.
+- **Bağlantı:** Simülatör 14551'e veri göndermediği için betik `wait_heartbeat`'te takıldı. `wait_heartbeat` olmadan gönderilen komut hiçbir yere ulaşmadı. İki betik aynı portu dinleyince biri veri alamadı.
+- **COMMAND_ACK:** `blocking=True` olmadan okuyunca `None` geldi. İlk gelen cevap `set_mode`'a aitti (176), arm'a (400) değil. `and` ile yazılmış koşul yüzünden ret durumunda döngü sonsuza kadar döndü.
+- **Kalkış ve iniş:** İrtifayı bir kez okuyup hiç güncellemedim. Milimetreyle metreyi karıştırdım. `==` ile kurduğum eşik hiç yakalanmadı. Yanlış girintili bir `break` döngüyü tek turda bitirdi.
+- **Servo:** İki ayrı `if` yüzünden servo tekrar tekrar açılıp kapandı. `blocking=1900` yazdım (`blocking` yalnızca True/False alır). İlk okunan SERVO_OUTPUT_RAW mesajı eskiydi.
+- **Simülatör durumu:** Bir uçuş bitmeden betiği yeniden çalıştırınca İHA armed kaldı ve kalkış reddedildi; nedenini `mav.tlog` kaydından buldum.
+- **Hata durumları:** `break`'ten sonra yazdığım `sys.exit` hiç çalışmadı.
