@@ -34,7 +34,8 @@ Aynı portu dinleyen iki betik aynı anda çalışamaz (aşağıdaki tabloda han
 | `ilk_baglanti.py` | 14551 | İHA'ya bağlanır ve ilk HEARTBEAT mesajını ekrana basar. Bağlantının çalıştığını denemenin en kısa yolu. |
 | `irtifa_oku.py` | 14551 | GLOBAL_POSITION_INT mesajını sürekli okuyup enlem, boylam ve irtifayı (metre) yazdırır. Çıkmak için Ctrl+C. |
 | `arm_durumu.py` | 14551 | HEARTBEAT'teki `base_mode` alanının 128 bitine bakarak İHA'nın `ARMED` mı `DISARMED` mı olduğunu sürekli yazdırır. Komut gönderen bir betiği denerken ikinci pencerede açık tutmak için. |
-| `komut_gonder.py` | 14552 | **Komut gönderir.** GUIDED moduna geçer, arm eder, 20 m'ye kalkar, servo 9'u açıp 5 saniye sonra kapatır ve LAND moduyla iner. Her komutun cevabını (COMMAND_ACK) kontrol eder; arm ya da kalkış reddedilirse veya 5 saniye içinde cevap gelmezse durur. Servo kısmı alıştırma amaçlıdır. |
+| `komut_gonder.py` | 14552 | **Komut gönderir.** GUIDED moduna geçer, arm eder, 20 m'ye kalkar, servo 9'u açıp 5 saniye sonra kapatır ve LAND moduyla iner. Arm ve kalkış komutlarının cevabını (COMMAND_ACK) kontrol eder, reddedilirse durur; kalkış cevabı 5 saniye içinde gelmezse de durur. Servonun konumunu SERVO_OUTPUT_RAW ile doğrular. Servo kısmı alıştırma amaçlıdır. |
+| `log_analiz.py` | — | Bir uçuş kaydını (`.BIN`) okur; irtifa, batarya gerilimi ve dikey titreşim grafiklerini `irtifa.png`, `gerilim.png` ve `vibration.png` olarak kaydeder, kısa bir özet yazdırır. İHA'ya bağlanmaz. Başka bir uçuşu incelemek için dosyanın başındaki `kayit_yolu` değiştirilir; grafikler her çalıştırmada yeniden yazılır. |
 | `yuk_birakma_gorevi.waypoints` | — | Mission Planner görev dosyası (PLAN → Load): kalkış, iki nokta, servo 9 ile yük bırakma, eve dönüş. Alıştırma amaçlıdır. |
 | `IHA-proje.py` | — | Aşama 1'deki Python temelleri alıştırmaları. İHA'ya bağlanmaz. |
 | `REHBER_SITL.md` | — | SITL ve Mission Planner kurulum rehberi (taslak; son hali 20 Aralık). |
