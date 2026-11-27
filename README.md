@@ -2,7 +2,7 @@
 
 TEKNOFEST Liseler Arası İHA Yarışması 2027 (Serbest Görev) için döner kanatlı bir İHA'nın yazılımını geliştiriyoruz. ARGUS, projenin çalışma adı. Uçuş kontrolcüsü ArduPilot (Copter); betikler Python ve [pymavlink](https://github.com/ArduPilot/pymavlink) ile yazılıyor ve şimdilik bilgisayarda simüle edilen bir İHA (SITL) üzerinde deneniyor.
 
-> **Güvenlik:** Komut gönderen betikler (şu an `komut_gonder.py`) gerçek bir İHA'da, pervaneler takılıyken ve pilot hazır değilken **asla** çalıştırılmaz.
+> **Güvenlik:** Komut gönderen betikler (şu an `gorev.py` ve `komut_gonder.py`) gerçek bir İHA'da, pervaneler takılıyken ve pilot hazır değilken **asla** çalıştırılmaz.
 
 ## Hızlı başlangıç
 
@@ -22,7 +22,7 @@ Kurulumdan sonra:
 
    ```bash
    cd ~/IHA-proje
-   python komut_gonder.py
+   python gorev.py
    ```
 
 Aynı portu dinleyen iki betik aynı anda çalışamaz (aşağıdaki tabloda hangi betiğin hangi portu kullandığı yazıyor).
@@ -34,6 +34,7 @@ Aynı portu dinleyen iki betik aynı anda çalışamaz (aşağıdaki tabloda han
 | `ilk_baglanti.py` | 14551 | İHA'ya bağlanır ve ilk HEARTBEAT mesajını ekrana basar. Bağlantının çalıştığını denemenin en kısa yolu. |
 | `irtifa_oku.py` | 14551 | GLOBAL_POSITION_INT mesajını sürekli okuyup enlem, boylam ve irtifayı (metre) yazdırır. Çıkmak için Ctrl+C. |
 | `arm_durumu.py` | 14551 | HEARTBEAT'teki `base_mode` alanının 128 bitine bakarak İHA'nın `ARMED` mı `DISARMED` mı olduğunu sürekli yazdırır. Komut gönderen bir betiği denerken ikinci pencerede açık tutmak için. |
+| `gorev.py` | 14552 | **Komut gönderir. Asıl görev betiği.** GUIDED moduna geçer, arm eder, `GOREREK_IRTIFA` (20 m) yüksekliğe kalkar ve LAND ile iner. Her komutun cevabını `ack_bekle()`, her mod değişikliğini HEARTBEAT'teki `custom_mode` ile `mod_bekle()` doğrular; bir şey ters giderse ya da 5 saniye içinde cevap gelmezse nedenini yazıp durur. Görev yarıda kalırsa (hata, Ctrl+C) `finally` bloğu İHA'yı RTL ile eve döndürür. Ayarlar dosyanın başındaki sabitlerde. |
 | `komut_gonder.py` | 14552 | **Komut gönderir.** GUIDED moduna geçer, arm eder, 20 m'ye kalkar, servo 9'u açıp 5 saniye sonra kapatır ve LAND moduyla iner. Arm ve kalkış komutlarının cevabını (COMMAND_ACK) kontrol eder, reddedilirse durur; kalkış cevabı 5 saniye içinde gelmezse de durur. Servonun konumunu SERVO_OUTPUT_RAW ile doğrular. Servo kısmı alıştırma amaçlıdır. |
 | `log_analiz.py` | — | Bir uçuş kaydını (`.BIN`) okur; irtifa, batarya gerilimi ve dikey titreşim grafiklerini `irtifa.png`, `gerilim.png` ve `vibration.png` olarak kaydeder, kısa bir özet yazdırır. İHA'ya bağlanmaz. Başka bir uçuşu incelemek için dosyanın başındaki `kayit_yolu` değiştirilir; grafikler her çalıştırmada yeniden yazılır. |
 | `yuk_birakma_gorevi.waypoints` | — | Mission Planner görev dosyası (PLAN → Load): kalkış, iki nokta, servo 9 ile yük bırakma, eve dönüş. Alıştırma amaçlıdır. |
@@ -72,3 +73,24 @@ Git ve GitHub, WSL, ArduPilot SITL kurulumu, Mission Planner ile AUTO görevi ve
 - **Servo:** İki ayrı `if` yüzünden servo tekrar tekrar açılıp kapandı. `blocking=1900` yazdım (`blocking` yalnızca True/False alır). İlk okunan SERVO_OUTPUT_RAW mesajı eskiydi.
 - **Simülatör durumu:** Bir uçuş bitmeden betiği yeniden çalıştırınca İHA armed kaldı ve kalkış reddedildi; nedenini `mav.tlog` kaydından buldum.
 - **Hata durumları:** `break`'ten sonra yazdığım `sys.exit` hiç çalışmadı.
+
+## Aşama 2b ve görev betiği (Kasım 2026)
+
+### Ne öğrendim
+
+- **numpy ve matplotlib:** Listeyi `np.array` ile diziye çevirip döngüsüz hesap yapmak; `plot`, eksen isimleri, `savefig`; her grafikten önce `plt.figure()`.
+- **Uçuş kaydı okumak:** `.BIN` dosyası da `mavlink_connection` ile açılır; BARO (irtifa), BAT (gerilim) ve VIBE (titreşim) mesajları. Dosya bitince `recv_match` `None` döndürür.
+- **Her sensör kendi zamanıyla çizilir;** zaman mikrosaniyeden saniyeye çevrilir ve ilk değer çıkarılarak sıfırdan başlatılır.
+- **Fonksiyonlar:** Tekrar eden kodu `ack_bekle(komut)` ve `mod_bekle(mod)` olarak bir kez yazıp çağırmak; parametrenin değeri çağrıldığı anda belli olur.
+- **Sabitler:** Ayar sayılarını (irtifa, timeout, adres) dosyanın başında büyük harfli isimlerle tutmak; iniş eşiğini kalkış irtifasından hesaplatmak.
+- **Timeout iki türlü:** `recv_match(timeout=...)` yalnızca *hiç mesaj gelmezse* işe yarar; beklenen şey hiç olmazken mesajlar gelmeye devam ediyorsa `time.time()` ile toplam süre sınırı gerekir.
+- **`try/finally`:** Betik nasıl biterse bitsin (`sys.exit`, Ctrl+C) `finally` çalışır; görev yarıda kalırsa RTL. Bağlantı koparsa RTL komutu İHA'ya ulaşamaz, o durumu ArduPilot'un kendi failsafe'i karşılar.
+- **Kanıt:** `mav.tlog` her simülatör açılışında sıfırlanır, `~/ardupilot/logs/*.BIN` kalıcıdır. RTL testi `00000022.BIN` kaydında görülebilir.
+
+### Ne çalışmadı
+
+- İlk grafiklerde zaman ekseni mikrosaniyede kaldı (`1e9`); hesabın sonucu bir değişkene atanmamıştı.
+- Batarya döngüsünde `None` kontrolü alanı okuduktan sonra geldiği için dosya sonunda `AttributeError` alındı.
+- Titreşim, bataryanın zaman dizisiyle çizilmeye çalışıldı: `x and y must have same first dimension`.
+- Simülatördeki batarya hiç boşalmadı; `SIM_BATT_CAP_AH = 0` olduğu için kapasite sonsuz. Düşük batarya testinde değiştirilmesi gerekecek.
+- Toplam süre sınırının başlangıç zamanı fonksiyonun dışında (program başında) alınınca, iniş anındaki mod kontrolü süre çoktan dolduğu için hemen başarısız oldu ve İHA LAND yerine RTL'ye geçti.
