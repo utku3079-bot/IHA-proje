@@ -26,26 +26,32 @@ kalp_atisi = baglanti.wait_heartbeat(timeout= TIMEOUT_SURESI)
 if kalp_atisi is None:
     sys.exit("Kalp atisi alinmadi")
 print("kalp atisi alindi")
-
-baglanti.set_mode("GUIDED")
-print("mode GUIDED olarak degistirildi")
+try:
+    gorev_tamamlandi = False
+    baglanti.set_mode("GUIDED")
+    print("mode GUIDED olarak degistirildi")
 
 # Arm
-baglanti.mav.command_long_send(baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, 0, 1, 0, 0, 0, 0, 0, 0)
-ack_bekle(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM)
+    baglanti.mav.command_long_send(baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM, 0, 1, 0, 0, 0, 0, 0, 0)
+    ack_bekle(mavutil.mavlink.MAV_CMD_COMPONENT_ARM_DISARM)
 
 # Kalkis 
-baglanti.mav.command_long_send(baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, GOREREK_IRTIFA)
-ack_bekle(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF)
+    baglanti.mav.command_long_send(baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_CMD_NAV_TAKEOFF, 0, 0, 0, 0, 0, 0, 0, GOREREK_IRTIFA)
+    ack_bekle(mavutil.mavlink.MAV_CMD_NAV_TAKEOFF)
 
 # INIS_ESIGI'ni gecince
-while True:
-    konum = baglanti.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout= TIMEOUT_SURESI)
-    if konum is None:
-        sys.exit("Konum bilgisi alinamadi")
-    irtifa = (konum.relative_alt)/1000
-    print(irtifa)
-    if irtifa > INIS_ESIGI:
-        baglanti.set_mode("LAND")
-        print("mode: LAND")
-        break
+    while True:
+        konum = baglanti.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout= TIMEOUT_SURESI)
+        if konum is None:
+            sys.exit("Konum bilgisi alinamadi")
+        irtifa = (konum.relative_alt)/1000
+        print(irtifa)
+        if irtifa > INIS_ESIGI:
+            baglanti.set_mode("LAND")
+            gorev_tamamlandi = True
+            print("mode: LAND")
+            break
+finally: 
+    if gorev_tamamlandi is False:
+        baglanti.set_mode("RTL")
+        print("mode: RTL")
