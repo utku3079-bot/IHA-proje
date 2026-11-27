@@ -9,7 +9,7 @@ LAND_MOD = 9
 BAGLANTI_ADRESI = "udpin:127.0.0.1:14552"
 def mod_bekle(mod_numarasi):
      baslangic = time.time()
-     while time.time() - baslangic < 5: 
+     while time.time() - baslangic < TIMEOUT_SURESI: 
             kalp_atisi = baglanti.recv_match(type="HEARTBEAT", blocking=True, timeout= TIMEOUT_SURESI)
             if kalp_atisi is None:
                 sys.exit(f"{mod_numarasi} mesaji gelmedi")
