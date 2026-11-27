@@ -1,10 +1,21 @@
 from pymavlink import mavutil
 import sys
+import time
 TIMEOUT_SURESI = 5
 GOREREK_IRTIFA = 20
 INIS_ESIGI = GOREREK_IRTIFA - 0.5
+GUIDED_MOD = 4 
+LAND_MOD = 9
 BAGLANTI_ADRESI = "udpin:127.0.0.1:14552"
-
+def mod_bekle(mod_numarasi):
+     baslangic = time.time()
+     while time.time() - baslangic < 5: 
+            kalp_atisi = baglanti.recv_match(type="HEARTBEAT", blocking=True, timeout= TIMEOUT_SURESI)
+            if kalp_atisi is None:
+                sys.exit(f"{mod_numarasi} mesaji gelmedi")
+            if kalp_atisi.custom_mode == mod_numarasi:
+                 return True
+     sys.exit("beklenen kod gelmedi")
 def ack_bekle(komut):
     # Gonderilen komutun cevabini (COMMAND_ACK) bekler.
     # Kabul edilirse True dondurur; cevap gelmezse ya da reddedilirse programi durdurur.
@@ -29,6 +40,7 @@ print("kalp atisi alindi")
 try:
     gorev_tamamlandi = False
     baglanti.set_mode("GUIDED")
+    print(mod_bekle(4))
     print("mode GUIDED olarak degistirildi")
 
 # Arm
@@ -48,6 +60,7 @@ try:
         print(irtifa)
         if irtifa > INIS_ESIGI:
             baglanti.set_mode("LAND")
+            print(mod_bekle(9))
             gorev_tamamlandi = True
             print("mode: LAND")
             break
