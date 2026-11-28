@@ -1,12 +1,24 @@
 from pymavlink import mavutil
 import sys
 import time
+import math
+HEDEF_ENLEM = -35.3628127 
+HEDEF_BOYLAM = 149.1652379 
+TYPE_MASK = 3576
 TIMEOUT_SURESI = 5
 GOREREK_IRTIFA = 20
+VARIS_ESIGI = 0.5
+BEKLEME_SURESI = 3
 INIS_ESIGI = GOREREK_IRTIFA - 0.5
 GUIDED_MOD = 4 
 LAND_MOD = 9
 BAGLANTI_ADRESI = "udpin:127.0.0.1:14552"
+METRE_PER_DERECE = 111320
+def mesafe(enlem_1, boylam_1, HEDEF_ENLEM, HEDEF_BOYLAM):
+    dikeyde_alinan_yol = (HEDEF_ENLEM - enlem_1) * METRE_PER_DERECE
+    yatayda_alinan_yol = (HEDEF_BOYLAM - boylam_1) * math.cos(math.radians(enlem_1)) * METRE_PER_DERECE
+    alinan_yol = math.sqrt(yatayda_alinan_yol * yatayda_alinan_yol + dikeyde_alinan_yol * dikeyde_alinan_yol )
+    return(alinan_yol)
 def mod_bekle(mod_numarasi):
      baslangic = time.time()
      while time.time() - baslangic < TIMEOUT_SURESI: 
@@ -59,10 +71,21 @@ try:
         irtifa = (konum.relative_alt)/1000
         print(irtifa)
         if irtifa > INIS_ESIGI:
+            baglanti.mav.set_position_target_global_int_send(0, baglanti.target_system, baglanti.target_component, mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, TYPE_MASK, int(HEDEF_ENLEM *10000000) , int(HEDEF_BOYLAM * 10000000) , GOREREK_IRTIFA, 0, 0, 0,  0, 0, 0,  0, 0)
+            break
+    while True:
+        konum = baglanti.recv_match(type="GLOBAL_POSITION_INT", blocking=True, timeout= TIMEOUT_SURESI)
+        if konum is None:
+            sys.exit("Konum bilgisi alinamadi")
+        enlem_1 = konum.lat / 10000000
+        boylam_1 = konum.lon / 10000000
+        print(mesafe(enlem_1, boylam_1, HEDEF_ENLEM, HEDEF_BOYLAM ))
+        if mesafe(enlem_1, boylam_1, HEDEF_ENLEM, HEDEF_BOYLAM ) < VARIS_ESIGI:
+            print("hedefe varildi")
+            time.sleep(BEKLEME_SURESI)
             baglanti.set_mode("LAND")
-            print(mod_bekle(9))
+            mod_bekle(LAND_MOD)
             gorev_tamamlandi = True
-            print("mode: LAND")
             break
 finally: 
     if gorev_tamamlandi is False:
