@@ -34,7 +34,8 @@ Aynı portu dinleyen iki betik aynı anda çalışamaz (aşağıdaki tabloda han
 | `ilk_baglanti.py` | 14551 | İHA'ya bağlanır ve ilk HEARTBEAT mesajını ekrana basar. Bağlantının çalıştığını denemenin en kısa yolu. |
 | `irtifa_oku.py` | 14551 | GLOBAL_POSITION_INT mesajını sürekli okuyup enlem, boylam ve irtifayı (metre) yazdırır. Çıkmak için Ctrl+C. |
 | `arm_durumu.py` | 14551 | HEARTBEAT'teki `base_mode` alanının 128 bitine bakarak İHA'nın `ARMED` mı `DISARMED` mı olduğunu sürekli yazdırır. Komut gönderen bir betiği denerken ikinci pencerede açık tutmak için. |
-| `gorev.py` | 14552 | **Komut gönderir. Asıl görev betiği.** GUIDED moduna geçer, arm eder, `GOREREK_IRTIFA` (20 m) yüksekliğe kalkar ve LAND ile iner. Her komutun cevabını `ack_bekle()`, her mod değişikliğini HEARTBEAT'teki `custom_mode` ile `mod_bekle()` doğrular; bir şey ters giderse ya da 5 saniye içinde cevap gelmezse nedenini yazıp durur. Görev yarıda kalırsa (hata, Ctrl+C) `finally` bloğu İHA'yı RTL ile eve döndürür. Ayarlar dosyanın başındaki sabitlerde. |
+| `gorev.py` | 14552 | **Komut gönderir. Asıl görev betiği.** GUIDED moduna geçer, arm eder, `GOREREK_IRTIFA` (20 m) yüksekliğe kalkar, `HEDEF_ENLEM`/`HEDEF_BOYLAM` koordinatına uçar (SET_POSITION_TARGET_GLOBAL_INT), hedefe `VARIS_ESIGI` kadar yaklaşınca `BEKLEME_SURESI` bekler ve orada LAND ile iner. Her komutun cevabını `ack_bekle()`, her mod değişikliğini HEARTBEAT'teki `custom_mode` ile `mod_bekle()` doğrular; bir şey ters giderse ya da 5 saniye içinde cevap gelmezse nedenini yazıp durur. Görev yarıda kalırsa (hata, Ctrl+C) `finally` bloğu İHA'yı RTL ile eve döndürür. Ayarlar dosyanın başındaki sabitlerde. |
+| `konum_hesap.py` | — | İki enlem/boylam noktası arasındaki mesafeyi metre olarak hesaplayan `mesafe()` fonksiyonu ve testi. Kısa mesafeler için düz yer yaklaşımı (1° enlem ≈ 111 320 m, boylam enlemin kosinüsüyle küçülür). İHA'ya bağlanmaz. |
 | `komut_gonder.py` | 14552 | **Komut gönderir.** GUIDED moduna geçer, arm eder, 20 m'ye kalkar, servo 9'u açıp 5 saniye sonra kapatır ve LAND moduyla iner. Arm ve kalkış komutlarının cevabını (COMMAND_ACK) kontrol eder, reddedilirse durur; kalkış cevabı 5 saniye içinde gelmezse de durur. Servonun konumunu SERVO_OUTPUT_RAW ile doğrular. Servo kısmı alıştırma amaçlıdır. |
 | `log_analiz.py` | — | Bir uçuş kaydını (`.BIN`) okur; irtifa, batarya gerilimi ve dikey titreşim grafiklerini `irtifa.png`, `gerilim.png` ve `vibration.png` olarak kaydeder, kısa bir özet yazdırır. İHA'ya bağlanmaz. Başka bir uçuşu incelemek için dosyanın başındaki `kayit_yolu` değiştirilir; grafikler her çalıştırmada yeniden yazılır. |
 | `yuk_birakma_gorevi.waypoints` | — | Mission Planner görev dosyası (PLAN → Load): kalkış, iki nokta, servo 9 ile yük bırakma, eve dönüş. Alıştırma amaçlıdır. |
@@ -94,3 +95,23 @@ Git ve GitHub, WSL, ArduPilot SITL kurulumu, Mission Planner ile AUTO görevi ve
 - Titreşim, bataryanın zaman dizisiyle çizilmeye çalışıldı: `x and y must have same first dimension`.
 - Simülatördeki batarya hiç boşalmadı; `SIM_BATT_CAP_AH = 0` olduğu için kapasite sonsuz. Düşük batarya testinde değiştirilmesi gerekecek.
 - Toplam süre sınırının başlangıç zamanı fonksiyonun dışında (program başında) alınınca, iniş anındaki mod kontrolü süre çoktan dolduğu için hemen başarısız oldu ve İHA LAND yerine RTL'ye geçti.
+
+## Hedefe gitme (28 Kasım 2026)
+
+`gorev.py` artık İHA'yı bir koordinata gönderip orada indiriyor. SITL'de kalkış noktasının 50 m kuzeyine gönderildi; İHA hedefi bir kez yaklaşık 0,7 m geçti (aşma, overshoot), sonra birkaç santimetrede durdu ve hedefin üstüne indi (kayıt: `00000024.BIN`).
+
+### Ne öğrendim
+
+- **Enlem/boylam → metre:** 1° enlem ≈ 111 320 m; boylamda bu değer enlemin kosinüsüyle çarpılır. Mesafe Pisagor ile bulunur. `math.cos` radyan ister.
+- **Birimler:** Kodun içinde her şey derece; ×10⁷ çevrimi yalnızca İHA'ya gönderirken ve İHA'dan okurken yapılır.
+- **SET_POSITION_TARGET_GLOBAL_INT:** 16 alan; `type_mask` bir bit maskesi (1 = bu alanı dikkate alma). Yalnızca konum için 3576. Bu mesaj bir komut olmadığı için COMMAND_ACK gelmez; varış konumdan anlaşılır.
+- **Testin başlangıç durumu da testin parçası:** Simülatör kapatılmazsa İHA bir önceki uçuşun indiği yerden başlar.
+
+### Ne çalışmadı
+
+- Python'da `111.320` yüz on bir virgül üç iki demek; sonuç 1000 kat küçük çıktı. Sabit tanımlanmış ama kullanılmamıştı.
+- Fonksiyonda `print` kullanınca dönen değer `None` oldu; `return` gerekiyordu.
+- Kosinüs boylamdan alınmıştı; kuzey testi bunu yakalamadı, doğu testi yakalar.
+- Fonksiyon çağrısının içine `HEDEF_ENLEM = ...` yazmak sözdizimi hatası verdi; zaman alanı unutulunca bütün alanlar bir sıra kaydı.
+- `if mod_bekle is True` fonksiyonun kendisine baktığı için hiç doğru olmadı; görev tamamlandı sayılmadı ve iniş sonrası gereksiz RTL gönderildi.
+- `VARIS_ESIGI = 0.05` SITL'de çalışıyor ama gerçek GPS'te birkaç metrelik oynama yüzünden hiç ulaşılamayabilir; gerçek uçuştan önce büyütülecek.
